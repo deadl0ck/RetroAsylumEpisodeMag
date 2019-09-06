@@ -3,7 +3,10 @@ package com.deadlock.retroasylum.ra_episodes_mag;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import org.jsoup.Jsoup;
@@ -25,7 +28,7 @@ import com.itextpdf.text.pdf.PdfWriter;
 public class MagGenerator
 {
     public final static String START_URL		= "http://retroasylum.com/category/all-posts/podcasts/page/";
-    public final static int NUM_PAGES			= 66;
+    public final static int NUM_PAGES			= 67;
     public final static String DIV_TAG			= "div";
     public final static String PARAGRAPH_TAG	= "p";
     public final static String PP_CLASS			= "previous-posts-container";
@@ -42,10 +45,17 @@ public class MagGenerator
 
     public static void main(String[] args) throws IOException, DocumentException
     {
-    	System.out.println("Starting to process....");
+    	System.out.println(MagGenerator.getTimestamp() + "Starting to process....");
         MagGenerator gen = new MagGenerator();
         gen.process();
-        System.out.println("Processing complete - PDF is available at: " + PDF_NAME);
+        System.out.println(MagGenerator.getTimestamp() + "Processing complete - PDF is available at: " + PDF_NAME);
+    }
+
+    public static String getTimestamp()
+    {
+    	DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+    	Date date = new Date();
+    	return "[" + dateFormat.format(date) + "]";
     }
 
     private void process() throws IOException, DocumentException
@@ -56,6 +66,7 @@ public class MagGenerator
         PdfWriter.getInstance(pdfDoc, new FileOutputStream(PDF_NAME));
         pdfDoc.open();
 
+        ArrayList<String> fullUrlList = new ArrayList<String>();
 
         for (int i = 0; i < NUM_PAGES; i++)
         {
@@ -83,15 +94,20 @@ public class MagGenerator
 
             // Process in reverse
             for (int j = (episodeUrlList.size() - 1); j >=0; j--)
-            	this.processPage(episodeUrlList.get(j), pdfDoc);
+            	fullUrlList.add(episodeUrlList.get(j));
+//            	this.processPage(episodeUrlList.get(j), pdfDoc);
         }
+
+        // Process all pages in reverse
+        for (int j = (fullUrlList.size() - 1); j >=0; j--)
+        	this.processPage(fullUrlList.get(j), pdfDoc);
 
         pdfDoc.close();
     }
 
     private void processPage(String url, com.itextpdf.text.Document pdfDoc) throws IOException, DocumentException
     {
-        System.out.println("Processing Page: " + url);
+        System.out.println(MagGenerator.getTimestamp() + "Processing Page: " + url);
         String html = this.getHtml(url);
         Document doc = Jsoup.parse(html);
         Elements body = doc.body().children();
@@ -106,11 +122,13 @@ public class MagGenerator
         int currentIndex = 0;
 
         // This is horrible hard-coded shit but I'm too busy right now to figure it out
-        if ((this.getCurrentPage() == 37) && !this.isDone())
+        if ((url.indexOf("episode-71-funstock-co-uk") != -1) && !this.isDone())
         {
         	this.setDone(true);
         	pictureUrl = "http://retroasylum.com/wp-content/uploads/2014/02/RA_Episode_71.jpg";
         }
+        else if (url.indexOf("episode-202-preservation") != -1)
+        	pictureUrl = "http://retroasylum.com/wp-content/uploads/2019/04/202a.png";
         else
         {
 
@@ -118,6 +136,9 @@ public class MagGenerator
 	        Element picElement = paragraphs.get(currentIndex++);
 	        if (picElement.toString().equals("<p>&nbsp;</p>"))
 	            picElement = paragraphs.get(currentIndex++);
+
+//	        if (url.indexOf("episode-71-funstock-co-uk") != -1)
+//	        	System.out.println("Here");
 
 	        Elements images = picElement.select(IMAGE_TAG);
 	        pictureUrl = images.get(0).attr(SOURCE);
